@@ -16,6 +16,8 @@ contract ERC5018 is IERC5018, LargeStorageManager, BlobStorageManager {
     mapping(bytes => bool) finalAt;  // bytes("test@1.0.0.txt")
     mapping(string => address) public fileOwner;  // name: "test"
     mapping(string => uint) public latestVersionAt;  // name: "test"
+    mapping(string => string[]) public fullNamesOf;  // fullNamesOf["test"] => ["test@1.0.1", "test@1.0.2"];
+    
 
     enum StorageMode {
         Uninitialized,
@@ -113,24 +115,26 @@ contract ERC5018 is IERC5018, LargeStorageManager, BlobStorageManager {
         
         string[] memory fullNamesWithoutSuffix; // test@1.2.3
         string[] memory names; // test
-        uint[] memory vertions;  // convert into uint, 10203
+        uint[] memory versions;  // convert into uint, 10203
 
-        (fullNamesWithoutSuffix, names, vertions) = getFileNameInfos(bytes.concat(bytes("/"), nameWithVersionAndSuffix));
+        (fullNamesWithoutSuffix, names, versions) = getFileNameInfos(bytes.concat(bytes("/"), nameWithVersionAndSuffix));
         require(fullNamesWithoutSuffix.length == 1, "only one file");
         
 
         // first write, set owner
         if(fileOwner[names[0]] == address(0) && chunkId == 0){
             fileOwner[names[0]] = msg.sender;
-            require(latestVersionAt[names[0]] < vertions[0], "only accept version greater");
-            latestVersionAt[names[0]] = vertions[0];
+            require(latestVersionAt[names[0]] < versions[0], "only accept version greater");
+            latestVersionAt[names[0]] = versions[0];
         }else{  // only accept expansion
             require(fileOwner[names[0]] == msg.sender,  "only file owner");
             (, uint256 chunkNum) = size(nameWithVersionAndSuffix);
             require(chunkId == chunkNum, "chunkId error");
         }
-        if(ifFinal == true) finalAt[nameWithVersionAndSuffix] = true;  // set final
-
+        if(ifFinal == true) {
+            finalAt[nameWithVersionAndSuffix] = true;  // set final
+            fullNamesOf[names[0]].push(fullNamesWithoutSuffix[0]);  // store the version
+        }
 
         StorageMode mode = getStorageMode(nameWithVersionAndSuffix);
         require(mode == StorageMode.Uninitialized || mode == StorageMode.OnChain, "Invalid storage mode");
@@ -221,12 +225,40 @@ contract ERC5018 is IERC5018, LargeStorageManager, BlobStorageManager {
         return 0;
     }
 
+    // name: "test"
+    // without suffix and version
+    function getFullNamesOfAll(string memory name) public view returns(string[] memory fullNamesWithoutSuffixList){
+        uint len = fullNamesOf[name].length;
+        return getFullNamesOfRange(name, 0, len-1);
+    }
+
+    // [_start, _end]
+    function getFullNamesOfRange(string memory name, uint _start, uint _end) public view returns(string[] memory){
+        string[] memory fullNamesWithoutSuffixList;
+
+        uint len = fullNamesOf[name].length;
+
+        if(len == 0) return fullNamesWithoutSuffixList;
+        
+        if(_end > len-1) _end = len-1;
+
+        require(_start <= _end, "range error");
+
+        fullNamesWithoutSuffixList = new string[](_end - _start + 1);
+
+        for(uint i=_start; i<=_end; i++){
+            fullNamesWithoutSuffixList[i] = fullNamesOf[name][i];
+        }
+
+        return fullNamesWithoutSuffixList;
+    }
+
     
     // pathinfo: /test@1.0.0.txt; /test@1.0.0_test2@1.0.2.txt; 
     function getFileNameInfos(bytes memory pathinfo) public pure returns(
         string[] memory fullNamesWithoutSuffix, // test@1.2.3
         string[] memory names, // test
-        uint[] memory vertions  // convert into uint,
+        uint[] memory versions  // convert into uint,
         ){
 
         // exclude ".txt" (0x2e747874)
@@ -235,7 +267,7 @@ contract ERC5018 is IERC5018, LargeStorageManager, BlobStorageManager {
         fullNamesWithoutSuffix = string(pathinfo.slice(1, (len-5))).splitString("_");
 
         names = new string[](fullNamesWithoutSuffix.length);
-        vertions = new uint[](fullNamesWithoutSuffix.length);
+        versions = new uint[](fullNamesWithoutSuffix.length);
         for(uint i=0; i<fullNamesWithoutSuffix.length; i++){
             names[i] = fullNamesWithoutSuffix[i].splitString("@")[0];
             require(nameCheck(names[i]) == true, "name error");
@@ -244,7 +276,7 @@ contract ERC5018 is IERC5018, LargeStorageManager, BlobStorageManager {
             for(uint j=0; j<_v.length; j++){
                 uint _num = _v[j].getUintFromStringLiteral();
                 require( _num < 1000000, "version error2");
-                vertions[i] +=  _num * (1000000**(2-j));  // a.b.c => a*(1000_000**2) + b*1000_000 + c
+                versions[i] +=  _num * (1000000**(2-j));  // a.b.c => a*(1000_000**2) + b*1000_000 + c
             }
         }
     }

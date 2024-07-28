@@ -10,7 +10,6 @@ const flatDirectoryAbi = require("../package/abi/FlatDirectory.json")
 const FlatDirectoryContract = (contractAddress, ABI) => {
   const Contract = new ethers.Contract(contractAddress, ABI, signer); 
   return Contract;
-
 };
 
 
@@ -31,13 +30,12 @@ const bufferChunk = (buffer, chunkSize) => {
 
 
 async function write(){
-  const contractAddress = "0x5d0b47BDD72265C0443D6F96065aA45c24677F04";
+  const contractAddress = "0xf5E92c452BC65073dAD94F3432c15ee1BB840FfF";
   const filePath = './code/';
-  // const fileName = "strToUtf8ByteStr@1.0.1";
-  const fileName = "uint8ArrayToByteStr@1.0.1";
+
+  const fileName = "strToUtf8ByteStr@1.0.1";
 
   const hexName = '0x' + Buffer.from(`${fileName}.txt`, 'utf8').toString('hex');  // 
-  
   
   const contract = FlatDirectoryContract(contractAddress, flatDirectoryAbi);
   const contentBuffer = fs.readFileSync(filePath + fileName + ".js"); // <Buffer 0a 20 20 2f 2f 20 ...>
@@ -48,10 +46,10 @@ async function write(){
   
 
 
-  // Data need to be sliced if file > 475K
+  // Data need to be sliced if file > 475K, for test, set 23k
   let chunks = [];
-  if (fileSize > 475 * 1024) {
-    const chunkSize = Math.ceil(fileSize / (475 * 1024));
+  if (fileSize > 23 * 1024) {  // fileSize > 475 * 1024
+    const chunkSize = Math.ceil(fileSize / (23 * 1024));
     chunks = bufferChunk(contentUtf8StrToBuffer, chunkSize);
     fileSize = fileSize / chunkSize;
   } else {
@@ -79,8 +77,9 @@ async function write(){
     };
 
 
-    // https://0x5d0b47BDD72265C0443D6F96065aA45c24677F04.11155111.w3link.io/strToUtf8ByteStr@1.0.1.txt
-    // https://0x5d0b47BDD72265C0443D6F96065aA45c24677F04.11155111.w3link.io/uint8ArrayToByteStr@1.0.1.txt
+    // https://0xf5E92c452BC65073dAD94F3432c15ee1BB840FfF.11155111.w3link.io/strToUtf8ByteStr@1.0.1.txt
+    // https://0xf5E92c452BC65073dAD94F3432c15ee1BB840FfF.11155111.w3link.io/uint8ArrayToByteStr@1.0.1.txt
+    // https://0xf5E92c452BC65073dAD94F3432c15ee1BB840FfF.11155111.w3link.io/uint8ArrayToByteStr@1.0.2.txt
     const tx = await contract.writeChunk(hexName, index, hexData,ifFinal, option);
     await tx.wait(1);
     console.log(`File ${fileName}.txt chunkId: ${index} uploaded!`);

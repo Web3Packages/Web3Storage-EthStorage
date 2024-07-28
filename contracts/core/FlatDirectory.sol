@@ -32,9 +32,9 @@ contract FlatDirectory is ERC5018 {
     function _fallback(bytes calldata pathinfo) internal view returns (bytes memory)  {
         string[] memory fullNamesWithoutSuffix;// test@1.2.3
         string[] memory names;  // test
-        uint[] memory vertions;  // convert into uint, 1*(1000_000**2) + 2*1000_000 + 3
+        uint[] memory versions;  // convert into uint, 1*(1000_000**2) + 2*1000_000 + 3
 
-        (fullNamesWithoutSuffix, names, vertions) = getFileNameInfos(pathinfo);
+        (fullNamesWithoutSuffix, names, versions) = getFileNameInfos(pathinfo);
 
 
         bytes[] memory contents = new bytes[](fullNamesWithoutSuffix.length);
@@ -85,6 +85,10 @@ contract FlatDirectory is ERC5018 {
         _r[index-1] = 0x7d;  // last modify to "}"
 
         return _r;
+    }
+
+    function getFiles(bytes calldata pathinfo) public view returns (bytes memory){
+        StorageHelper.returnBytesInplace(_fallback(pathinfo));
     }
 
 
