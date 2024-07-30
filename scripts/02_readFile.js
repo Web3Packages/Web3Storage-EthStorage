@@ -4,6 +4,11 @@ const path = require("path");
 const { ethers } = require("hardhat");
 const { provider, wallet, signer } = require("../connection.js");
 
+// const flatDirectoryAbi = [
+//   "function read(bytes memory nameWithVersionAndSuffix) external view returns (bytes memory, bool)",
+//   "function writeChunk(bytes memory nameWithVersionAndSuffix, uint256 chunkId, bytes memory data, bool ifFinal) external payable",
+//   "function readChunk(bytes memory nameWithVersionAndSuffix, uint256 chunkId) external view returns (bytes memory, bool)"
+// ];
 const flatDirectoryAbi = require("../package/abi/FlatDirectory.json")
 
 
@@ -100,13 +105,24 @@ function utf8ArrayToStr(utf8Bytes){
 const FlatDirectoryContract = (contractAddress, ABI) => {
   const Contract = new ethers.Contract(contractAddress, ABI, signer); 
   return Contract;
+  // const Instane = Contract.connect(signer);
+  // return Instane;
+      // let result = await ITask_instane.withdraw(_taskId, _amount, _deadline, _signatureBytes);
+      // await result.wait(1);
+  // const provider = new ethers.providers.Web3Provider(window.ethereum);
+  // const contract = new ethers.Contract(address, flatDirectoryAbi, provider);
+  // return contract.connect(provider.getSigner());
 };
 
 
-async function read(contractAddress, fileName){
+async function read(contractAddress, fileNamesWithVersion){
 
-  const hexName = '0x' + Buffer.from(`/${fileName}.txt`, 'utf8').toString('hex');  // 
+  // const fileNamesWithVersion = "strToUtf8ByteStr@1.0.1";
+  // const fileNamesWithVersion = "uint8ArrayToByteStr@1.0.1";
+
+  const hexName = '0x' + Buffer.from(`/${fileNamesWithVersion}.txt`, 'utf8').toString('hex');  // 
   
+  // console.log(hexName)
   const contract = FlatDirectoryContract(contractAddress, flatDirectoryAbi);
 
   const returnByteStr = await contract.getFiles(hexName);
@@ -114,10 +130,21 @@ async function read(contractAddress, fileName){
   const returnStr = utf8ArrayToStr(returnUint8Array);
 
   const returnJson = JSON.parse(returnStr);
-  const contentEncode = returnJson[fileName.split("@")[0]];
-  const contentDecode = decodeURIComponent(contentEncode);
+  // console.log(returnJson);
+  const fileNameListWithVersion = fileNamesWithVersion.split("_");
+  let fileNameList=[];
+  let returnCode = ""
+  for(let i=0; i< fileNameListWithVersion.length; i++){
+    let fileName = fileNameListWithVersion[i].split("@")[0];
+    const contentEncode = returnJson[fileName];
+    const contentDecode = decodeURIComponent(contentEncode);
+    returnCode = returnCode + contentDecode + "\n";
+  }
+  console.log(returnCode);
+
+  // const contentEncode = returnJson[fileName.split("@")[0]];
+  // const contentDecode = decodeURIComponent(contentEncode);
   
-  console.log(contentDecode);
 }
 
 
@@ -125,7 +152,9 @@ async function getFileList(contractAddress, fileName){
 
   const contract = FlatDirectoryContract(contractAddress, flatDirectoryAbi);
 
-  const returnList = await contract.getFullNamesOfAll(fileName.split("@")[0]);
+  // const returnList = await contract.getFullNamesOfAll(fileName.split("@")[0]);
+  // const returnList = await contract.getFullNamesOfRange(fileName.split("@")[0], 0, 0);
+  const returnList = await contract.getFullNamesOfAll(fileName);
 
   console.log(returnList);  // [ 'uint8ArrayToByteStr@1.0.1' ]
 }
@@ -133,8 +162,14 @@ async function getFileList(contractAddress, fileName){
 
 
 const ContractAddress = "0xf5E92c452BC65073dAD94F3432c15ee1BB840FfF";
-const fileNameWithVersion = "uint8ArrayToByteStr@1.0.1";
+// const fileNameWithVersion = "uint8ArrayToByteStr@1.0.1";
+const fileNamesWithVersion = "uint8ArrayToByteStr@1.0.1_strToUtf8ByteStr@1.0.1";
 
-read(ContractAddress, fileNameWithVersion)
+const fileName = "uint8ArrayToByteStr";
 
-getFileList(ContractAddress, fileNameWithVersion)
+
+
+
+read(ContractAddress, fileNamesWithVersion)
+
+getFileList(ContractAddress, fileName)
